@@ -15,6 +15,7 @@ object Subscription extends Controller {
 
   def create() = Action { implicit request =>
     Logger.info("Create action called " + request)
+    Logger.info("Create action headers " + request.headers)
     val oauthNonce = request.headers("oauth_nonce")
     val oauthTs = request.headers("oauth_timestamp")
     val oauthConsumerKey = request.headers("oauth_consumer_key")
