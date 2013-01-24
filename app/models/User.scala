@@ -6,6 +6,7 @@ import play.api.db.DB
 import anorm.~
 
 import play.api.Play.current
+import xml.Node
 
 /**
  * Represents a user who is purchasing the app.
@@ -130,4 +131,20 @@ object User {
         SQL("delete from user where id = {id}").on('id -> id).executeUpdate()
     }
   }
+
+  /**
+   * Parses an user from a creator node received from AppDirect
+   *
+   * @param creator The node
+   * @param accountId The account id
+   * @return The user
+   */
+  def parseFromXml(creator: Node, accountId: Option[Long]) =
+    User(
+      email = creator \\ "email" text,
+      firstName = Some(creator \\ "firstName" text),
+      lastName = Some(creator \\ "lastName" text),
+      openId = Some(creator \\ "openId" text),
+      language = Some(creator \\ "language" text),
+      accountId = accountId)
 }

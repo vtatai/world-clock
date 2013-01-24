@@ -58,7 +58,7 @@ object Subscription extends Controller {
     Async {
       WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
         Logger.debug("Response to callback: %s" format response.xml)
-        val parsedAccount: Account = parseAccount(response.xml \\ "payload" \ "company" head)
+        val parsedAccount: Account = Account.parseFromXml(response.xml \\ "payload" \ "company" head)
         Account.findByUuid(parsedAccount.uuid) match {
           case Some(x) => sendCreateResponse("Account already exists, returning old id", x.id.toString)
           case None => {
@@ -98,24 +98,6 @@ object Subscription extends Controller {
     Logger.debug("Sending response" + response)
     Ok(response)
   }
-
-  def parseUser(creator: Node, accountId: Option[Long]) =
-    User(
-      email = creator \\ "email" text,
-      firstName = Some(creator \\ "firstName" text),
-      lastName = Some(creator \\ "lastName" text),
-      openId = Some(creator \\ "openId" text),
-      language = Some(creator \\ "language" text),
-      accountId = accountId)
-
-  def parseAccount(company: Node) =
-    Account(
-      uuid = company \\ "uuid" text,
-      email = Some(company \\ "email" text),
-      name = Some(company \\ "name" text),
-      phoneNumber = Some(company \\ "phoneNumber" text),
-      website = Some(company \\ "website" text)
-    )
 
   def update() = Action { implicit request =>
     // TODO Need to authorize the request using oauth!

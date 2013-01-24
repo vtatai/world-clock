@@ -4,6 +4,7 @@ import anorm._
 import anorm.SqlParser._
 import play.api.Play.current
 import play.api.db.DB
+import xml.Node
 
 /**
  * Account represents an account for a customer signing up.
@@ -121,4 +122,19 @@ object Account {
         SQL("delete from account where id = {id}").on('id -> id).executeUpdate()
     }
   }
+
+  /**
+   * Parses an account from a company node received from AppDirect.
+   *
+   * @param company The node
+   * @return The Account
+   */
+  def parseFromXml(company: Node) =
+    Account(
+      uuid = company \\ "uuid" text,
+      email = Some(company \\ "email" text),
+      name = Some(company \\ "name" text),
+      phoneNumber = Some(company \\ "phoneNumber" text),
+      website = Some(company \\ "website" text)
+    )
 }
