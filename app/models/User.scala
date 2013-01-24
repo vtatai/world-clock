@@ -32,13 +32,13 @@ object User {
    * Parse an User from a ResultSet
    */
   val simple = {
-    get[Pk[Long]]("account.id") ~
-      get[String]("account.email") ~
-      get[String]("account.first_name") ~
-      get[String]("account.last_name") ~
-      get[String]("account.open_id") ~
-      get[String]("account.language") ~
-      get[Long]("account.account_id") map {
+    get[Pk[Long]]("user.id") ~
+      get[String]("user.email") ~
+      get[String]("user.first_name") ~
+      get[String]("user.last_name") ~
+      get[String]("user.open_id") ~
+      get[String]("user.language") ~
+      get[Long]("user.account_id") map {
       case id ~ email ~ firstName ~ lastName ~ openId ~ language ~ accountId =>
         User(id, email, Some(firstName), Some(lastName), Some(openId), Some(language), Some(accountId))
     }

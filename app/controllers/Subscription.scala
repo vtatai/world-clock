@@ -99,10 +99,47 @@ object Subscription extends Controller {
     Ok(response)
   }
 
-  def update() = Action { implicit request =>
-    // TODO Need to authorize the request using oauth!
-    Logger.info("Update action called " + request)
+  def update() = {
+    def updateAction(account: Account, response: play.api.libs.ws.Response) =
+      sendResponse("Update ok")
+    action(updateAction)
+  }
 
+  def cancel() = {
+    def cancelAction(account: Account, response: play.api.libs.ws.Response) = {
+      Account.delete(account.id.get)
+      sendResponse("Account canceled")
+    }
+    action(cancelAction)
+  }
+  
+  def notification() = {
+    def notificationAction(account: Account, response: play.api.libs.ws.Response) = {
+      (response.xml \\ "payload" \ "account" \ "status").text match {
+        case "DEACTIVATED" => {
+          Account.deactivate(account.id.get)
+          sendResponse("Account deactivated")
+        }
+        case "REACTIVATED" => {
+          Account.activate(account.id.get)
+          sendResponse("Account reactivated")
+        }
+        case "UPCOMING_INVOICE" => sendResponse("NOT SUPPORTED YET")
+        case _ => sendErrorResponse("Unknown notification code", ErrorCode.InvalidResponse.toString)
+      }
+    }
+    action(notificationAction)
+  }
+
+  /**
+   * This method is reused by all the other methods, except for the create method which has a different logic.
+   *
+   * @param f A function to execute if the account was found and is valid
+   * @return The action
+   */
+  def action(f: (Account, play.api.libs.ws.Response) => SimpleResult[_]) = Action { implicit request =>
+    // TODO Need to authorize the request using oauth!
+    Logger.info("Action called " + request)
     val eventUrl = Form("eventUrl" -> text).bindFromRequest().get
     Async {
       WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
@@ -114,21 +151,11 @@ object Subscription extends Controller {
           sendErrorResponse("Account does not exist", ErrorCode.AccountNotFound.toString)
         } else {
           Account.findById(accountIdentifier.toLong) match {
-            case Some(x) => sendResponse("Update ok") // Probably do something else here in a real app
+            case Some(x) => f(x, response)
             case None => sendErrorResponse("Account does not exist", ErrorCode.AccountNotFound.toString)
           }
         }
       }
     }
-  }
-  
-  def cancel() = Action {
-    Logger.info("Cancel action called")
-    Home
-  }
-  
-  def notification() = Action {
-    Logger.info("Notification action called")
-    Home
   }
 }

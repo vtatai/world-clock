@@ -15,7 +15,8 @@ case class Account(
                     email: Option[String],
                     name: Option[String],
                     phoneNumber: Option[String],
-                    website: Option[String]
+                    website: Option[String],
+                    active: Boolean
                     )
 
 object Account {
@@ -31,9 +32,10 @@ object Account {
       get[String]("account.email") ~
       get[String]("account.name") ~
       get[String]("account.phone_number") ~
-      get[String]("account.website") map {
-      case id ~ uuid ~ email ~ name ~ phoneNumber ~ website =>
-        Account(id, uuid, Some(email), Some(name), Some(phoneNumber), Some(website))
+      get[String]("account.website") ~
+      get[Boolean]("account.active") map {
+      case id ~ uuid ~ email ~ name ~ phoneNumber ~ website ~ active =>
+        Account(id, uuid, Some(email), Some(name), Some(phoneNumber), Some(website), active)
     }
   }
 
@@ -71,7 +73,7 @@ object Account {
         SQL(
           """
           update account
-          set uuid = {uuid}, email = {email}, name = {name}, phone_number = {phoneNumber}, website = {website}
+          set uuid = {uuid}, email = {email}, name = {name}, phone_number = {phoneNumber}, website = {website}, active = {active}
           where id = {id}
           """
         ).on(
@@ -80,10 +82,43 @@ object Account {
           'email -> account.email,
           'name -> account.name,
           'phoneNumber -> account.phoneNumber,
-          'website -> account.website
+          'website -> account.website,
+          'active -> account.active
         ).executeUpdate()
     }
   }
+
+  /**
+   * Sets the active flag for an account.
+   *
+   * @param id The account id
+   * @param active Value to set
+   */
+  def updateActive(id: Long, active: Boolean) = {
+    DB.withConnection {
+      implicit connection =>
+        SQL(
+          """
+          update account
+          set active = {active}
+          where id = {id}
+          """
+        ).on(
+          'id -> id,
+          'active -> active
+        ).executeUpdate()
+    }
+  }
+
+  /**
+   * Deactivates an account.
+   */
+  def deactivate(id: Long) = updateActive(id, false)
+
+  /**
+   * Activates an account.
+   */
+  def activate(id: Long) = updateActive(id, true)
 
   /**
    * Insert a new account.
@@ -96,9 +131,9 @@ object Account {
         SQL(
           """
           insert into account
-            (uuid, email, name, phone_number, website)
+            (uuid, email, name, phone_number, website, active)
           values (
-            {uuid}, {email}, {name}, {phoneNumber}, {website}
+            {uuid}, {email}, {name}, {phoneNumber}, {website}, {active}
           )
           """
         ).on(
@@ -106,7 +141,8 @@ object Account {
           'name -> account.name,
           'email -> account.email,
           'phoneNumber -> account.phoneNumber,
-          'website -> account.website
+          'website -> account.website,
+          'active -> account.active
         ).executeInsert()
     }
   }
@@ -135,6 +171,7 @@ object Account {
       email = Some(company \\ "email" text),
       name = Some(company \\ "name" text),
       phoneNumber = Some(company \\ "phoneNumber" text),
-      website = Some(company \\ "website" text)
+      website = Some(company \\ "website" text),
+      active = true
     )
 }
