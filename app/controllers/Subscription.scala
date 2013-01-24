@@ -60,28 +60,30 @@ object Subscription extends Controller {
         Logger.debug("Response to callback: %s" format response.xml)
         val parsedAccount: Account = parseAccount(response.xml \\ "payload" \ "company" head)
         Account.findByUuid(parsedAccount.uuid) match {
-          case Some(x) => sendResponse("Account already exists, returning old id", x.id.toString)
+          case Some(x) => sendCreateResponse("Account already exists, returning old id", x.id.toString)
           case None => {
             val accountId = Account.insert(parsedAccount)
-//            val user = parseUser(response.xml \\ "creator" head, accountId)
-//            User.findByEmail(user.email) match {
-//              case None => {
-//                sendResponse("Account created successfully", User.insert(user).toString)
-//              }
-//              case Some(u) => sendErrorResponse("Account created successfully", ErrorCode.UserAlreadyExists.toString)
-//            }
-            sendResponse("Account created successfully", accountId.get.toString)
+            sendCreateResponse("Account created successfully", accountId.get.toString)
           }
         }
       }
     }
   }
 
-  def sendResponse(message: String, accountIdentifier: String) = {
+  def sendCreateResponse(message: String, accountIdentifier: String) = {
     val response = <result>
       <success>true</success>
       <message>{message}</message>
       <accountIdentifier>{accountIdentifier}</accountIdentifier>
+    </result>
+    Logger.debug("Sending response" + response)
+    Ok(response)
+  }
+
+  def sendResponse(message: String) = {
+    val response = <result>
+      <success>true</success>
+      <message>{message}</message>
     </result>
     Logger.debug("Sending response" + response)
     Ok(response)
@@ -115,9 +117,27 @@ object Subscription extends Controller {
       website = Some(company \\ "website" text)
     )
 
-  def update() = Action {
-    Logger.info("Update action called")
-    Home
+  def update() = Action { implicit request =>
+    // TODO Need to authorize the request using oauth!
+    Logger.info("Update action called " + request)
+
+    val eventUrl = Form("eventUrl" -> text).bindFromRequest().get
+    Async {
+      WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
+        Logger.debug("Response to callback: %s" format response.xml)
+        val accountIdentifier: String = (response.xml \\ "payload" \ "account" \ "accountIdentifier").text
+        if (accountIdentifier == "dummy-account") {
+          sendResponse("dummy-account, sending ok reply")
+        } else if (!accountIdentifier.matches("\\d+")) {
+          sendErrorResponse("Account does not exist", ErrorCode.AccountNotFound.toString)
+        } else {
+          Account.findById(accountIdentifier.toLong) match {
+            case Some(x) => sendResponse("Update ok") // Probably do something else here in a real app
+            case None => sendErrorResponse("Account does not exist", ErrorCode.AccountNotFound.toString)
+          }
+        }
+      }
+    }
   }
   
   def cancel() = Action {
