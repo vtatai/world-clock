@@ -3,47 +3,118 @@ package controllers
 import play.api._
 import libs.oauth._
 import libs.oauth.ConsumerKey
-import libs.oauth.OAuth
 import libs.oauth.OAuthCalculator
-import libs.oauth.ServiceInfo
 import libs.ws.WS
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
 
-import anorm._
 
-import views._
 import models._
-import oauth.signpost.signature.OAuthMessageSigner
+import scala.xml.Node
 
+/**
+ * Receives AppDirect subscription requests.
+ */
 object Subscription extends Controller {
   val Home = Redirect(routes.Application.index)
 
-  def create(token: String, url: String) = Action { implicit request =>
-    Logger.info("Create action called " + request)
-//    val authorization = request.headers("AUTHORIZATION")
-//    val oauthNonce = request.headers("oauth_nonce")
-//    val oauthTs = request.headers("oauth_timestamp")
-//    val oauthConsumerKey = request.headers("oauth_consumer_key")
-//    val oauthSignatureMethod = request.headers("oauth_signature_method")
-//    val oauthVersion = request.headers("oauth_version")
-//    val oauthSignature = request.headers("oauth_signature")
-//    Logger.info("headers: %s | %s | %s | %s | %s | %s" format (oauthNonce, oauthTs, oauthConsumerKey, oauthSignatureMethod, oauthVersion, oauthSignature))
+  object ErrorCode extends Enumeration {
+    type ErrorCode = Value
 
+    val UserAlreadyExists = Value("USER_ALREADY_EXISTS")
+    val UserNotFound = Value("USER_NOT_FOUND")
+    val AccountNotFound = Value("ACCOUNT_NOT_FOUND")
+    val MaxUsersReached = Value("MAX_USERS_REACHED")
+    val Unauthorized = Value("UNAUTHORIZED")
+    val OperationCanceled = Value("OPERATION_CANCELED")
+    val ConfigurationError = Value("CONFIGURATION_ERROR")
+    val InvalidResponse = Value("INVALID_RESPONSE")
+    val UnknownError = Value("UNKNOWN_ERROR")
+  }
+
+  def createOAuthCalculator = {
     val consumerKey = ConsumerKey("world-clock-4631", "wgQwLcBAXKVMO3m9")
-    val oAuth = OAuth(ServiceInfo(null, null, null, consumerKey))
     val calc = OAuthCalculator(consumerKey, RequestToken("", ""))
-    calc.setSendEmptyTokens(true)
+    //    calc.setSendEmptyTokens(true)
+    calc
+  }
 
+  /**
+   * Responds to a create request.
+   *
+   * As an observation, since I could not find in the docs, if an account with the same UUID is found, or if an user
+   * with the same email is found, then an error message is returned
+   *
+   * @return The action to be executed
+   */
+  def create = Action { implicit request =>
+    // TODO Need to authorize the request using oauth!
+    Logger.info("Create action called " + request)
+
+    val form = Form(tuple("token" -> text, "eventUrl" -> text))
+    val (token, eventUrl) = form.bindFromRequest().get
+    Logger.info("Token %s url eventUrl %s".format(token, eventUrl))
     Async {
-      WS.url(url).sign(calc).get().map { response =>
-        Logger.info("Response: " + response)
-        Ok
+      WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
+        Logger.debug("Response to callback: %s" format response.xml)
+        val parsedAccount: Account = parseAccount(response.xml \\ "payload" \ "company" head)
+        Account.findByUuid(parsedAccount.uuid) match {
+          case Some(x) => sendResponse("Account already exists, returning old id", x.id.toString)
+          case None => {
+            val accountId = Account.insert(parsedAccount)
+//            val user = parseUser(response.xml \\ "creator" head, accountId)
+//            User.findByEmail(user.email) match {
+//              case None => {
+//                sendResponse("Account created successfully", User.insert(user).toString)
+//              }
+//              case Some(u) => sendErrorResponse("Account created successfully", ErrorCode.UserAlreadyExists.toString)
+//            }
+            sendResponse("Account created successfully", accountId.get.toString)
+          }
+        }
       }
     }
   }
-  
+
+  def sendResponse(message: String, accountIdentifier: String) = {
+    val response = <result>
+      <success>true</success>
+      <message>{message}</message>
+      <accountIdentifier>{accountIdentifier}</accountIdentifier>
+    </result>
+    Logger.debug("Sending response" + response)
+    Ok(response)
+  }
+
+  def sendErrorResponse(message: String, errorCode: String) = {
+    val response = <result>
+      <success>false</success>
+      <message>{message}</message>
+      <errorCode>{errorCode}</errorCode>
+    </result>
+    Logger.debug("Sending response" + response)
+    Ok(response)
+  }
+
+  def parseUser(creator: Node, accountId: Option[Long]) =
+    User(
+      email = creator \\ "email" text,
+      firstName = Some(creator \\ "firstName" text),
+      lastName = Some(creator \\ "lastName" text),
+      openId = Some(creator \\ "openId" text),
+      language = Some(creator \\ "language" text),
+      accountId = accountId)
+
+  def parseAccount(company: Node) =
+    Account(
+      uuid = company \\ "uuid" text,
+      email = Some(company \\ "email" text),
+      name = Some(company \\ "name" text),
+      phoneNumber = Some(company \\ "phoneNumber" text),
+      website = Some(company \\ "website" text)
+    )
+
   def update() = Action {
     Logger.info("Update action called")
     Home
