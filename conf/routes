@@ -12,3 +12,6 @@ GET 	/subscriptions/create		controllers.Subscription.create
 GET 	/subscriptions/update		controllers.Subscription.update
 GET 	/subscriptions/cancel		controllers.Subscription.cancel
 GET 	/subscriptions/notification	controllers.Subscription.notification
+
+GET 	/users/assign	            controllers.UserAssign.assign
+GET 	/users/unassign	            controllers.UserAssign.unassign

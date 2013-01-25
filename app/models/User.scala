@@ -77,7 +77,7 @@ object User {
       implicit connection =>
         SQL(
           """
-          update user
+          update "user"
           set email = {email}, first_name = {firstName}, last_name = {lastName}, open_id = {openId}, language = {language}, account_id = {accountId}
           where id = {id}
           """
@@ -128,23 +128,23 @@ object User {
   def delete(id: Long) = {
     DB.withConnection {
       implicit connection =>
-        SQL("delete from user where id = {id}").on('id -> id).executeUpdate()
+        SQL("delete from \"user\" where id = {id}").on('id -> id).executeUpdate()
     }
   }
 
   /**
    * Parses an user from a creator node received from AppDirect
    *
-   * @param creator The node
+   * @param node The node
    * @param accountId The account id
    * @return The user
    */
-  def parseFromXml(creator: Node, accountId: Option[Long]) =
+  def parseFromXml(node: Node, accountId: Option[Long]) =
     User(
-      email = creator \\ "email" text,
-      firstName = Some(creator \\ "firstName" text),
-      lastName = Some(creator \\ "lastName" text),
-      openId = Some(creator \\ "openId" text),
-      language = Some(creator \\ "language" text),
+      email = node \\ "email" text,
+      firstName = Some(node \\ "firstName" text),
+      lastName = Some(node \\ "lastName" text),
+      openId = Some(node \\ "openId" text),
+      language = Some(node \\ "language" text),
       accountId = accountId)
 }
