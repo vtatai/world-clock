@@ -20,6 +20,10 @@ case class Account(
                     plan: String
                     )
 
+/**
+ * Object responsible for parsing and CRUD operations for Account.
+ * TODO DRY this up together with User
+ */
 object Account {
 
   // -- Parsers
@@ -39,6 +43,26 @@ object Account {
       case id ~ uuid ~ email ~ name ~ phoneNumber ~ website ~ active ~ plan =>
         Account(id, uuid, Some(email), Some(name), Some(phoneNumber), Some(website), active, plan)
     }
+  }
+
+
+  /**
+   * Parses an account from a company node received from AppDirect.
+   *
+   * @param event The event node
+   * @return The Account
+   */
+  def parseFromXml(event: Node) = {
+    val company = (event \\ "company").head
+    Account(
+      uuid = company \\ "uuid" text,
+      email = Some(company \\ "email" text),
+      name = Some(company \\ "name" text),
+      phoneNumber = Some(company \\ "phoneNumber" text),
+      website = Some(company \\ "website" text),
+      active = true,
+      plan = event \\ "order" \ "editionCode" text
+    )
   }
 
   // -- Queries
@@ -180,24 +204,5 @@ object Account {
       implicit connection =>
         SQL("delete from account where id = {id}").on('id -> id).executeUpdate()
     }
-  }
-
-  /**
-   * Parses an account from a company node received from AppDirect.
-   *
-   * @param event The event node
-   * @return The Account
-   */
-  def parseFromXml(event: Node) = {
-    val company = (event \\ "company").head
-    Account(
-      uuid = company \\ "uuid" text,
-      email = Some(company \\ "email" text),
-      name = Some(company \\ "name" text),
-      phoneNumber = Some(company \\ "phoneNumber" text),
-      website = Some(company \\ "website" text),
-      active = true,
-      plan = event \\ "order" \ "editionCode" text
-    )
   }
 }

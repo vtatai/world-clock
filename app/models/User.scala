@@ -44,6 +44,23 @@ object User {
     }
   }
 
+
+  /**
+   * Parses an user from a creator node received from AppDirect
+   *
+   * @param node The node
+   * @param accountId The account id
+   * @return The user
+   */
+  def parseFromXml(node: Node, accountId: Option[Long]) =
+    User(
+      email = node \\ "email" text,
+      firstName = Some(node \\ "firstName" text),
+      lastName = Some(node \\ "lastName" text),
+      openId = Some(node \\ "openId" text),
+      language = Some(node \\ "language" text),
+      accountId = accountId)
+
   // -- Queries
 
   /**
@@ -131,20 +148,4 @@ object User {
         SQL("delete from \"user\" where id = {id}").on('id -> id).executeUpdate()
     }
   }
-
-  /**
-   * Parses an user from a creator node received from AppDirect
-   *
-   * @param node The node
-   * @param accountId The account id
-   * @return The user
-   */
-  def parseFromXml(node: Node, accountId: Option[Long]) =
-    User(
-      email = node \\ "email" text,
-      firstName = Some(node \\ "firstName" text),
-      lastName = Some(node \\ "lastName" text),
-      openId = Some(node \\ "openId" text),
-      language = Some(node \\ "language" text),
-      accountId = accountId)
 }

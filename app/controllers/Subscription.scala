@@ -24,18 +24,28 @@ object Subscription extends AppDirect {
    * @return The action to be executed
    */
   def create = Action { implicit request =>
+    def sendCreateResponse(message: String, accountIdentifier: String) = {
+      val response = <result>
+        <success>true</success>
+        <message>{message}</message>
+        <accountIdentifier>{accountIdentifier}</accountIdentifier>
+      </result>
+      Logger.debug("Sending response" + response)
+      Ok(response)
+    }
+
     // TODO Need to authorize the request using oauth!
     Logger.info("Create action called " + request)
 
     val form = Form(tuple("token" -> text, "eventUrl" -> text))
     val (token, eventUrl) = form.bindFromRequest().get
-    Logger.info("Token %s url eventUrl %s".format(token, eventUrl))
+    Logger.debug("Token %s url eventUrl %s".format(token, eventUrl))
     Async {
       WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
         Logger.debug("Response to callback: %s" format response.xml)
         val parsedAccount: Account = Account.parseFromXml(response.xml)
         Account.findByUuid(parsedAccount.uuid) match {
-          case Some(x) => sendCreateResponse("Account already exists, returning old id", x.id.toString)
+          case Some(x) => sendErrorResponse("Account already exists, returning old id", ErrorCode.ConfigurationError.toString)
           case None => {
             val accountId = Account.insert(parsedAccount)
             val user = User.parseFromXml(response.xml \\ "event" \ "creator" head, accountId)
@@ -50,16 +60,6 @@ object Subscription extends AppDirect {
         }
       }
     }
-  }
-
-  def sendCreateResponse(message: String, accountIdentifier: String) = {
-    val response = <result>
-      <success>true</success>
-      <message>{message}</message>
-      <accountIdentifier>{accountIdentifier}</accountIdentifier>
-    </result>
-    Logger.debug("Sending response" + response)
-    Ok(response)
   }
 
   /**

@@ -87,7 +87,7 @@ trait AppDirect extends Controller {
    */
   def action(f: (Account, play.api.libs.ws.Response) => SimpleResult[_]) = Action { implicit request =>
   // TODO Need to authorize the request using oauth!
-    Logger.info("Action called " + request)
+    Logger.debug("Action called " + request)
     val eventUrl = Form("eventUrl" -> text).bindFromRequest().get
     Async {
       WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
