@@ -62,6 +62,9 @@ object Subscription extends AppDirect {
     Ok(response)
   }
 
+  /**
+   * Responds to an update request.
+   */
   def update() = {
     def updateAction(account: Account, response: play.api.libs.ws.Response) = {
       Account.updatePlan(account.id.get, (response.xml \\ "order" \ "editionCode").text)
@@ -70,6 +73,9 @@ object Subscription extends AppDirect {
     action(updateAction)
   }
 
+  /**
+   * Responds to a cancel request.
+   */
   def cancel() = {
     def cancelAction(account: Account, response: play.api.libs.ws.Response) = {
       Account.delete(account.id.get)
@@ -77,7 +83,10 @@ object Subscription extends AppDirect {
     }
     action(cancelAction)
   }
-  
+
+  /**
+   * Responds to a notification request.
+   */
   def notification() = {
     def notificationAction(account: Account, response: play.api.libs.ws.Response) = {
       (response.xml \\ "payload" \ "account" \ "status").text match {

@@ -13,9 +13,13 @@ import play.api.data.Forms._
 import models._
 
 /**
- *
+ * This is a common base trait for controllers handling AppDirect requests.
  */
 trait AppDirect extends Controller {
+
+  /**
+   * The error code, following AppDirect's API.
+   */
   object ErrorCode extends Enumeration {
     type ErrorCode = Value
 
@@ -30,6 +34,12 @@ trait AppDirect extends Controller {
     val UnknownError = Value("UNKNOWN_ERROR")
   }
 
+  /**
+   * Uses Play's OAuth support to create an OAuthCalculator which is used to sign all requests to AppDirect.
+   * TODO keys are hardcoded now, move them to config file
+   *
+   * @return The OAuthCalculator
+   */
   def createOAuthCalculator = {
     val consumerKey = ConsumerKey("world-clock-4631", "wgQwLcBAXKVMO3m9")
     val calc = OAuthCalculator(consumerKey, RequestToken("", ""))
@@ -37,6 +47,12 @@ trait AppDirect extends Controller {
     calc
   }
 
+  /**
+   * Sends a successful response.
+   *
+   * @param message The message to send
+   * @return The SimpleResult (always Ok)
+   */
   def sendResponse(message: String) = {
     val response = <result>
       <success>true</success>
@@ -46,6 +62,13 @@ trait AppDirect extends Controller {
     Ok(response)
   }
 
+  /**
+   * Sends an error response.
+   *
+   * @param message The message to send
+   * @param errorCode The error code according to AppDirect's API
+   * @return The SimpleResult (always Ok)
+   */
   def sendErrorResponse(message: String, errorCode: String) = {
     val response = <result>
       <success>false</success>
