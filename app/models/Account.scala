@@ -16,7 +16,8 @@ case class Account(
                     name: Option[String],
                     phoneNumber: Option[String],
                     website: Option[String],
-                    active: Boolean
+                    active: Boolean,
+                    plan: String
                     )
 
 object Account {
@@ -33,9 +34,10 @@ object Account {
       get[String]("account.name") ~
       get[String]("account.phone_number") ~
       get[String]("account.website") ~
-      get[Boolean]("account.active") map {
-      case id ~ uuid ~ email ~ name ~ phoneNumber ~ website ~ active =>
-        Account(id, uuid, Some(email), Some(name), Some(phoneNumber), Some(website), active)
+      get[Boolean]("account.active") ~
+      get[String]("account.plan") map {
+      case id ~ uuid ~ email ~ name ~ phoneNumber ~ website ~ active ~ plan =>
+        Account(id, uuid, Some(email), Some(name), Some(phoneNumber), Some(website), active, plan)
     }
   }
 
@@ -64,26 +66,26 @@ object Account {
   /**
    * Update a account.
    *
-   * @param id The account id
    * @param account The account values.
    */
-  def update(id: Long, account: Account) = {
+  def update(account: Account) = {
     DB.withConnection {
       implicit connection =>
         SQL(
           """
           update account
-          set uuid = {uuid}, email = {email}, name = {name}, phone_number = {phoneNumber}, website = {website}, active = {active}
+          set uuid = {uuid}, email = {email}, name = {name}, phone_number = {phoneNumber}, website = {website}, active = {active}, plan = {plan}
           where id = {id}
           """
         ).on(
-          'id -> id,
+          'id -> account.id.get,
           'uuid -> account.uuid,
           'email -> account.email,
           'name -> account.name,
           'phoneNumber -> account.phoneNumber,
           'website -> account.website,
-          'active -> account.active
+          'active -> account.active,
+          'plan -> account.plan
         ).executeUpdate()
     }
   }
@@ -121,6 +123,26 @@ object Account {
   def activate(id: Long) = updateActive(id, true)
 
   /**
+   * Updates the plan.
+   *
+   * @param id The account id
+   * @param plan The plan
+   */
+  def updatePlan(id: Long, plan: String) = {
+    DB.withConnection {
+      implicit connection =>
+        SQL(
+          """
+          update account set plan = {plan} where id = {id}
+          """
+        ).on(
+          'id -> id,
+          'plan -> plan
+        ).executeUpdate()
+    }
+  }
+
+  /**
    * Insert a new account.
    *
    * @param account The account values.
@@ -131,9 +153,9 @@ object Account {
         SQL(
           """
           insert into account
-            (uuid, email, name, phone_number, website, active)
+            (uuid, email, name, phone_number, website, active, plan)
           values (
-            {uuid}, {email}, {name}, {phoneNumber}, {website}, {active}
+            {uuid}, {email}, {name}, {phoneNumber}, {website}, {active}, {plan}
           )
           """
         ).on(
@@ -142,7 +164,8 @@ object Account {
           'email -> account.email,
           'phoneNumber -> account.phoneNumber,
           'website -> account.website,
-          'active -> account.active
+          'active -> account.active,
+          'plan -> account.plan
         ).executeInsert()
     }
   }
@@ -162,16 +185,19 @@ object Account {
   /**
    * Parses an account from a company node received from AppDirect.
    *
-   * @param company The node
+   * @param event The event node
    * @return The Account
    */
-  def parseFromXml(company: Node) =
+  def parseFromXml(event: Node) = {
+    val company = (event \\ "company").head
     Account(
       uuid = company \\ "uuid" text,
       email = Some(company \\ "email" text),
       name = Some(company \\ "name" text),
       phoneNumber = Some(company \\ "phoneNumber" text),
       website = Some(company \\ "website" text),
-      active = true
+      active = true,
+      plan = event \\ "order" \ "editionCode" text
     )
+  }
 }

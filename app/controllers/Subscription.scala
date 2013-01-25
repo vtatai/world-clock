@@ -58,7 +58,7 @@ object Subscription extends Controller {
     Async {
       WS.url(eventUrl).sign(createOAuthCalculator).get().map { response =>
         Logger.debug("Response to callback: %s" format response.xml)
-        val parsedAccount: Account = Account.parseFromXml(response.xml \\ "payload" \ "company" head)
+        val parsedAccount: Account = Account.parseFromXml(response.xml)
         Account.findByUuid(parsedAccount.uuid) match {
           case Some(x) => sendCreateResponse("Account already exists, returning old id", x.id.toString)
           case None => {
@@ -100,8 +100,10 @@ object Subscription extends Controller {
   }
 
   def update() = {
-    def updateAction(account: Account, response: play.api.libs.ws.Response) =
+    def updateAction(account: Account, response: play.api.libs.ws.Response) = {
+      Account.updatePlan(account.id.get, (response.xml \\ "order" \ "editionCode").text)
       sendResponse("Update ok")
+    }
     action(updateAction)
   }
 
